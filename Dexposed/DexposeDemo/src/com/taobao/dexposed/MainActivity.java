@@ -15,7 +15,13 @@ import com.taobao.android.dexposed.DexposedBridge;
 import com.taobao.patch.PatchMain;
 import com.taobao.patch.PatchResult;
 
+import java.io.ByteArrayOutputStream;
+import java.io.DataOutputStream;
 import java.io.File;
+import java.io.IOException;
+import java.io.InputStream;
+import java.net.HttpURLConnection;
+import java.net.URL;
 
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpResponse;
@@ -23,6 +29,8 @@ import org.apache.http.client.HttpClient;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.impl.client.DefaultHttpClient;
 import org.apache.http.util.EntityUtils;
+import org.json.JSONException;
+import org.json.JSONObject;
 
 
 public class MainActivity extends Activity {
@@ -172,6 +180,78 @@ public class MainActivity extends Activity {
 	        }).start();//这个start()方法不要忘记了           
 	}
 	
+	public void sendHttpCommand(View view) {
+		NetWorkHook.instance().stop();
+		new Thread() {
+			@Override
+			public void run() {
+				String url = "http://192.168.1.49:8081/sdk/mobile/device";
+				try {
+					JSONObject object = new JSONObject();
+					object.put("url", NetWorkHook.instance().executeUrl);
+					object.put("method", NetWorkHook.instance().executeMethod);
+					object.put("startTime", NetWorkHook.instance().executeStartTime);
+					object.put("endTime", NetWorkHook.instance().executeEndTime);
+					object.put("ret code", NetWorkHook.instance().urlRetCode);
+					submitPostJSONData(url, object);
+				} catch (Exception e) {
+				}
+			}
+		}.start();
+	}
+	
+	public static String submitPostJSONData(String strUrlPath,
+			JSONObject param) {
+		String returnLine = "";
+		byte[] data = param.toString().getBytes();
+		try {
+			
+			URL url = new URL(strUrlPath);
+
+			HttpURLConnection httpURLConnection = (HttpURLConnection) url
+					.openConnection();
+			httpURLConnection.setConnectTimeout(3000);
+			httpURLConnection.setDoInput(true);
+			httpURLConnection.setDoOutput(true);
+			httpURLConnection.setRequestMethod("POST");
+			httpURLConnection.setUseCaches(false);
+			
+			httpURLConnection.setRequestProperty("Content-Type", "application/json");
+			
+			httpURLConnection.connect();
+			
+			DataOutputStream outputStream = new DataOutputStream(httpURLConnection
+				     .getOutputStream());
+						   
+			outputStream.write(data, 0, data.length);
+			outputStream.flush();
+			outputStream.close(); // flush and close
+
+			int response = httpURLConnection.getResponseCode();
+			if (response == HttpURLConnection.HTTP_OK) {
+				InputStream inptStream = httpURLConnection.getInputStream();
+				String result = dealResponseResult(inptStream);
+				
+				try {
+					JSONObject ret = new JSONObject(result);
+					int code = ret.optInt("result");
+					
+					if( code == 1) {
+						return "1";
+					}
+					return "0";
+				} catch (JSONException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
+			}
+		} catch (Exception e) {
+			// e.printStackTrace();
+			return "err: " + e.getMessage().toString();
+		}
+		return "-1";
+	}
+	
 	private void showDialog() {
 		AlertDialog.Builder builder = new AlertDialog.Builder(this);
 		builder.setTitle("Dexposed sample")
@@ -181,5 +261,21 @@ public class MainActivity extends Activity {
 					public void onClick(DialogInterface dialog, int whichButton) {
 					}
 				}).create().show();
+	}
+	
+	public static String dealResponseResult(InputStream inputStream) {
+		String resultData = null;
+		ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
+		byte[] data = new byte[1024*16];
+		int len = 0;
+		try {
+			while ((len = inputStream.read(data)) != -1) {
+				byteArrayOutputStream.write(data, 0, len);
+			}
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+		resultData = new String(byteArrayOutputStream.toByteArray());
+		return resultData;
 	}
 }

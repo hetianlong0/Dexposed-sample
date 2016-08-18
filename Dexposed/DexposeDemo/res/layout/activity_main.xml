@@ -64,5 +64,15 @@
         android:layout_marginTop="22dp"
         android:text="@string/run_patch_apk"
         android:onClick="hookHttpClient" />
+     
+     <Button
+        android:id="@+id/send_http_command"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignLeft="@+id/hello_world"
+        android:layout_below="@+id/hook_http_client"
+        android:layout_marginTop="22dp"
+        android:text="@string/send_http_hook_infors"
+        android:onClick="sendHttpCommand" />
 
 </RelativeLayout>
